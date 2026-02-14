@@ -1,22 +1,23 @@
 -- ════════════════════════════════════════════════════════════════
--- VeloHub 2.0 - Оптимизированная версия
+-- WindUI Chat & Morph Script - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ
+-- Полный функционал + система конфигов + защита от крашей
 -- ════════════════════════════════════════════════════════════════
 
 -- ════════════════════════════════════════════════════════════════
 -- ЗАЩИТА ОТ ПОВТОРНОГО ЗАПУСКА
 -- ════════════════════════════════════════════════════════════════
-if _G.VeloHubLoaded then
+if _G.ChatMorphHubLoaded then
     pcall(function()
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "⚠️ Уже запущено!",
-            Text = "VeloHub уже активен",
+            Text = "Скрипт уже активен",
             Duration = 3,
         })
     end)
     return
 end
 
-_G.VeloHubLoaded = true
+_G.ChatMorphHubLoaded = true
 
 -- ════════════════════════════════════════════════════════════════
 -- СЕРВИСЫ И ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -95,24 +96,19 @@ local State = {
     -- Keybinds
     menuKeybind = "Insert",
     
+    -- Kill Notifier
+    killNotifierEnabled = false,
+    killNotifierDuration = 2,
+    
     -- Misc / Time Control
     freezeTime = false,
     customTime = 12,
     
-    -- ACS
+    -- ACS Advanced
     acsAnimPatchApplied = false,
     acsAmmoPatchApplied = false,
     acsMedPatchApplied = false,
     acsHitSoundEnabled = false,
-    acsKillSoundEnabled = false,
-    acsShotgunApplied = false,
-    
-    -- Spread + Recoil
-    spreadRecoilGun = "M40 Sniper",
-    
-    -- Other
-    fastUseEnabled = false,
-    hideParachuteEnabled = false,
 }
 
 -- ════════════════════════════════════════════════════════════════
@@ -132,6 +128,36 @@ local ExecutorCapabilities = {
     checkcaller = type(checkcaller) == "function",
     getcustomasset = type(getcustomasset) == "function" or type(getsynasset) == "function",
 }
+
+local function getACSSupport()
+    local features, unsupported = {}, {}
+    
+    if ExecutorCapabilities.hookfunction then
+        table.insert(features, "✓ Ускорение анимаций")
+    else
+        table.insert(unsupported, "✗ Ускорение анимаций")
+    end
+    
+    if ExecutorCapabilities.hookmetamethod and ExecutorCapabilities.newcclosure and ExecutorCapabilities.checkcaller then
+        table.insert(features, "✓ Бесконечные патроны")
+    else
+        table.insert(unsupported, "✗ Бесконечные патроны")
+    end
+    
+    if ExecutorCapabilities.getrawmetatable and ExecutorCapabilities.setreadonly then
+        table.insert(features, "✓ Медицина на ходу")
+    else
+        table.insert(unsupported, "✗ Медицина на ходу")
+    end
+    
+    if ExecutorCapabilities.getcustomasset then
+        table.insert(features, "✓ Кастомный HitSound")
+    else
+        table.insert(unsupported, "✗ Кастомный HitSound")
+    end
+    
+    return features, unsupported
+end
 
 -- ════════════════════════════════════════════════════════════════
 -- УТИЛИТЫ
@@ -347,14 +373,14 @@ HPLabel.Parent = HPBack
 -- СОЗДАНИЕ WINDUI ОКНА
 -- ════════════════════════════════════════════════════════════════
 local Window = WindUI:CreateWindow({
-    Title = "VeloHub 2.0  |  by .alowyy1",
-    Folder = "velohub",
+    Title = "ДЦПХАБ  |  by .alowyy1",
+    Folder = "ChatMorphHub",
     Icon = "lucide:messages-square",
     NewElements = true,
     HideSearchBar = false,
     
     OpenButton = {
-        Title = "Open VeloHub",
+        Title = "Open Chat Hub",
         CornerRadius = UDim.new(0, 8),
         StrokeThickness = 2,
         Enabled = false,
@@ -374,7 +400,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v2.0",
+    Title = "v1.1",
     Icon = "lucide:sparkles",
     Color = Color3.fromHex("#FF5050"),
     Border = true,
@@ -771,6 +797,7 @@ UITab:Space()
 
 UITab:Section({
     Title = "Custom Killfeed",
+    TextSize = 18,
 })
 
 UITab:Toggle({
@@ -787,6 +814,7 @@ UITab:Space()
 
 UITab:Section({
     Title = "Custom HP Bar",
+    TextSize = 18,
 })
 
 UITab:Toggle({
@@ -807,6 +835,52 @@ UITab:Colorpicker({
     Default = State.hpBarColor,
     Callback = function(color)
         State.hpBarColor = color
+    end
+})
+
+UITab:Space()
+
+UITab:Section({
+    Title = "Управление меню",
+    TextSize = 18,
+})
+
+UITab:Keybind({
+    Flag = "MenuKeybind",
+    Title = "Клавиша открытия меню",
+    Value = State.menuKeybind,
+    Callback = function(value)
+        State.menuKeybind = value
+        Window:SetToggleKey(Enum.KeyCode[value])
+    end
+})
+
+UITab:Section({
+    Title = "Kill Notifier",
+    TextSize = 18,
+})
+
+UITab:Toggle({
+    Flag = "KillNotifierEnabled",
+    Title = "Показывать уведомление",
+    Desc = "Ник умершего 'died' зеленым цветом",
+    Value = State.killNotifierEnabled,
+    Callback = function(value)
+        State.killNotifierEnabled = value
+    end
+})
+
+UITab:Slider({
+    Flag = "KillNotifierDuration",
+    Title = "Время отображения",
+    Step = 0.5,
+    Value = {
+        Min = 1,
+        Max = 10,
+        Default = 3,
+    },
+    Callback = function(value)
+        State.killNotifierDuration = value
     end
 })
 
@@ -853,170 +927,187 @@ MiscTab:Slider({
     end
 })
 
-MiscTab:Space()
-
-MiscTab:Section({
-    Title = "Other",
-})
-
-MiscTab:Button({
-    Title = "Fast Use",
-    Desc = "Позволяет активировать все кнопки без задержки. Не отключается",
-    Icon = "lucide:zap",
-    Justify = "Center",
-    Color = Color3.fromHex("#FF8030"),
-    Callback = function()
-        State.fastUseEnabled = true
-        game:GetService("ProximityPromptService").PromptButtonHoldBegan:Connect(function(prompt)
-            prompt.HoldDuration = 0
-        end)
-        
-        WindUI:Notify({
-            Title = "Fast Use",
-            Content = "Активировано!",
-            Icon = "lucide:check",
-        })
-    end
-})
-
-MiscTab:Space()
-
-MiscTab:Toggle({
-    Flag = "HideParachuteEnabled",
-    Title = "Спрятать парашют",
-    Desc = "Скрывает парашют и рюкзак",
-    Value = State.hideParachuteEnabled,
-    Callback = function(value)
-        State.hideParachuteEnabled = value
-    end
-})
-
 -- ════════════════════════════════════════════════════════════════
--- ВКЛАДКА: ACS
+-- ВКЛАДКА: ACS ADVANCED
 -- ════════════════════════════════════════════════════════════════
 local ACSTab = Window:Tab({
-    Title = "ACS",
+    Title = "ACS Advanced",
     Icon = "lucide:crosshair",
     IconColor = Color3.fromHex("#FF5050"),
     Border = true,
 })
 
+-- Проверка совместимости
+local supportedFeatures, unsupportedFeatures = getACSSupport()
+
 ACSTab:Section({
-    Title = "Работает на Velocity и частично Seliware",
+    Title = "Совместимость. Тестировалось на Velocity 0.7.8. Может не работать на Xeno",
     TextSize = 18,
 })
+
+for _, feature in ipairs(supportedFeatures) do
+    ACSTab:Paragraph({
+        Title = feature,
+        Content = "",
+    })
+end
+
+if #unsupportedFeatures > 0 then
+    ACSTab:Space()
+    for _, feature in ipairs(unsupportedFeatures) do
+        ACSTab:Paragraph({
+            Title = feature,
+            Content = "",
+        })
+    end
+end
 
 ACSTab:Space()
 
 -- ════════════════════════════════════════════════════════════════
--- РАЗДЕЛ: ОРУЖИЕ
+-- ГРУППА: ОРУЖИЕ
 -- ════════════════════════════════════════════════════════════════
 ACSTab:Section({
     Title = "Оружие",
     TextSize = 16,
 })
 
-ACSTab:Input({
-    Flag = "SpreadRecoilGun",
-    Title = "Разброс + Отдача",
-    Icon = "lucide:rifle",
-    Value = State.spreadRecoilGun,
-    Placeholder = "Напр. AWP, M40 Sniper...",
-    Callback = function(value)
-        State.spreadRecoilGun = value
-    end
-})
+local WeaponGroup = ACSTab:Group()
 
-ACSTab:Space()
-
-ACSTab:Button({
-    Title = "Применить",
-    Icon = "lucide:check",
-    Justify = "Center",
-    Color = Color3.fromHex("#10C550"),
+WeaponGroup:Button({
+    Flag = "ACSAnimPatch",
+    Title = State.acsAnimPatchApplied and "✓ Анимации ускорены" or "Ускорить доставание",
+    Desc = "Патч анимаций",
+    Icon = "lucide:zap",
+    Justify = "Left",
+    Color = State.acsAnimPatchApplied and Color3.fromHex("#10C550") or Color3.fromHex("#FF5050"),
     Callback = function()
-        if State.spreadRecoilGun == "" then
+        if State.acsAnimPatchApplied then
             WindUI:Notify({
-                Title = "Ошибка",
-                Content = "Введи название оружия!",
+                Title = "Уже применено",
+                Content = "Патч анимаций уже активен!",
+                Icon = "lucide:info",
+            })
+            return
+        end
+        
+        if not ExecutorCapabilities.hookfunction then
+            WindUI:Notify({
+                Title = "Не поддерживается",
+                Content = "Твой экзекутор не поддерживает hookfunction",
                 Icon = "lucide:x",
             })
             return
         end
         
-        pcall(function()
-            local gun = State.spreadRecoilGun
-            if game.Players.LocalPlayer.Backpack:FindFirstChild(gun) then
-                game.Players.LocalPlayer.Backpack[gun]:SetAttribute("HRecoil", Vector2.new(0, 0))
-                game.Players.LocalPlayer.Backpack[gun]:SetAttribute("VRecoil", Vector2.new(0, 0))
-                game.Players.LocalPlayer.Backpack[gun]:SetAttribute("MaxSpread", 0)
-                game.Players.LocalPlayer.Backpack[gun]:SetAttribute("MinSpread", 0)
-                game.Players.LocalPlayer.Backpack[gun]:SetAttribute("SwayBase", 0)
-                
-                WindUI:Notify({
-                    Title = "Применено!",
-                    Content = "Параметры \"" .. gun .. "\" обнулены",
-                    Icon = "lucide:check",
-                })
-            else
-                WindUI:Notify({
-                    Title = "Ошибка",
-                    Content = "Оружие \"" .. gun .. "\" не найдено в инвентаре",
-                    Icon = "lucide:x",
-                })
+        local success, err = pcall(function()
+            local gunsList = {
+                "AWP", "Barrett M82", "Kar98K", "Remington MSR",
+                "M200 Intervention", "M1903 Springfield", "M40 Sniper"
+            }
+            
+            for _, gunName in pairs(gunsList) do
+                if player.Backpack:FindFirstChild(gunName) or 
+                   (player.Character and player.Character:FindFirstChild(gunName)) then
+                    error("Сначала убери " .. gunName .. " из инвентаря!")
+                end
             end
+            
+            local targetModules = {}
+            for _, gunName in pairs(gunsList) do
+                local path = ReplicatedStorage.Configurations.ACS_Guns:FindFirstChild(gunName)
+                if path and path:FindFirstChild("Animations") then
+                    targetModules[path.Animations] = true
+                end
+            end
+            
+            local oldRequire
+            oldRequire = hookfunction(require, function(module)
+                local result = oldRequire(module)
+                
+                if targetModules[module] and type(result) == "table" then
+                    result["EquipAnim"] = function(_, _, p4)
+                        local ts = TweenService
+                        
+                        ts:Create(p4[2], TweenInfo.new(0), {
+                            ["C1"] = CFrame.new(-0.875, -0.2, -1.25) * CFrame.Angles(-1.0471975511965976, 0, 0)
+                        }):Play()
+                        ts:Create(p4[3], TweenInfo.new(0), {
+                            ["C1"] = CFrame.new(1.2, -0.05, -1.65) * CFrame.Angles(-1.5707963267948966, 0.6108652381980153, -0.4363323129985824)
+                        }):Play()
+                        
+                        task.wait(0.1)
+                        
+                        local settings = require(module.Parent.Settings)
+                        ts:Create(p4[2], TweenInfo.new(0.4), { ["C1"] = settings.RightPos }):Play()
+                        ts:Create(p4[3], TweenInfo.new(0.4), { ["C1"] = settings.LeftPos }):Play()
+                        
+                        task.wait(0.4)
+                    end
+                end
+                
+                return result
+            end)
+            
+            State.acsAnimPatchApplied = true
         end)
+        
+        if success then
+            WindUI:Notify({
+                Title = "Патч применен",
+                Content = "Анимации доставания ускорены!",
+                Icon = "lucide:check",
+            })
+        else
+            WindUI:Notify({
+                Title = "Ошибка",
+                Content = tostring(err),
+                Icon = "lucide:alert-triangle",
+            })
+        end
     end
 })
 
-ACSTab:Space()
+WeaponGroup:Space()
 
--- ════════════════════════════════════════════════════════════════
--- РАЗДЕЛ: ПАТРОНЫ
--- ════════════════════════════════════════════════════════════════
-ACSTab:Section({
-    Title = "Патроны",
-    TextSize = 16,
-})
-
-ACSTab:Button({
+WeaponGroup:Button({
     Flag = "ACSAmmoPatch",
     Title = State.acsAmmoPatchApplied and "✓ Патроны бесконечные" or "Бесконечные патроны",
-    Desc = "Устанавливает бесконечные пiтронi",
+    Desc = "inf ammo",
     Icon = "lucide:infinity",
-    Justify = "Center",
+    Justify = "Left",
     Color = State.acsAmmoPatchApplied and Color3.fromHex("#10C550") or Color3.fromHex("#FF5050"),
     Callback = function()
         if State.acsAmmoPatchApplied then return end
         
         if not (ExecutorCapabilities.hookmetamethod and ExecutorCapabilities.newcclosure) then
-            WindUI:Notify({
-                Title = "Возможно не поддерживается твоим инжектором",
-                Content = "Попытка активировать...",
-                Icon = "lucide:alert-triangle",
-            })
+            WindUI:Notify({Title = "Ошибка", Content = "Экзекутор не поддерживает хуки", Icon = "lucide:x"})
+            return
         end
         
         local success, err = pcall(function()
             local targetGuns = {
-                ["M40 Sniper"] = true,
-                ["Remington MSR"] = true, ["Kar98K"] = true,
+                ["Remington MSR"] = true, ["M40 Sniper"] = true, ["Kar98K"] = true,
                 ["AWP"] = true, ["Barrett M82"] = true, ["M200 Intervention"] = true,
                 ["M1903 Springfield"] = true
             }
             
+            -- Безопасное число, которое ACS не сломает
+            -- Большинство UI в Roblox превращают 2^63 в "inf" или просто не могут его уменьшить
+            local safeInf = 999999999 
+
             local oldIndex
             oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, index)
                 if not checkcaller() then
                     if index == "Value" and self.Name == "Ammo" then
                         if self.Parent and targetGuns[self.Parent.Name] then
-                            return math.huge
+                            return safeInf
                         end
                     end
                     
                     if index == "Ammo" and self.Name == "Settings" then
                         if self.Parent and targetGuns[self.Parent.Name] then
-                            return math.huge
+                            return safeInf
                         end
                     end
                 end
@@ -1027,7 +1118,7 @@ ACSTab:Button({
         end)
         
         if success then
-            WindUI:Notify({Title = "Патроны", Content = "Бесконечный боезапас включен!", Icon = "lucide:check"})
+            WindUI:Notify({Title = "ACS", Content = "Безопасный бесконечный боезапас включен!", Icon = "lucide:check"})
         else
             warn("Ошибка патронов: " .. tostring(err))
         end
@@ -1037,321 +1128,21 @@ ACSTab:Button({
 ACSTab:Space()
 
 -- ════════════════════════════════════════════════════════════════
--- РАЗДЕЛ: АНИМАЦИИ
--- ════════════════════════════════════════════════════════════════
-ACSTab:Section({
-    Title = "Анимации",
-    TextSize = 16,
-})
-
-local AnimButtonsGroup = ACSTab:Group()
-
-AnimButtonsGroup:Button({
-    Title = "Скорость 0.5",
-    Icon = "lucide:zap",
-    Justify = "Center",
-    Color = Color3.fromHex("#FF8030"),
-    Callback = function()
-        if not ExecutorCapabilities.hookfunction then
-            WindUI:Notify({
-                Title = "Возможно не поддерживается твоим инжектором",
-                Content = "Попытка активировать...",
-                Icon = "lucide:alert-triangle",
-            })
-            return
-        end
-        
-        local success, err = pcall(function()
-            local animSpeed = 0.5
-            local gunsList = {
-                "AWP", "Barrett M82", "Kar98K", "Remington MSR",
-                "M200 Intervention", "M1903 Springfield", "M40 Sniper"
-            }
-            
-            for _, gunName in pairs(gunsList) do
-                if player.Backpack:FindFirstChild(gunName) or 
-                   (player.Character and player.Character:FindFirstChild(gunName)) then
-                    error("Сначала убери " .. gunName .. " из инвентаря!")
-                end
-            end
-            
-            local targetModules = {}
-            for _, gunName in pairs(gunsList) do
-                local path = ReplicatedStorage.Configurations.ACS_Guns:FindFirstChild(gunName)
-                if path and path:FindFirstChild("Animations") then
-                    targetModules[path.Animations] = true
-                end
-            end
-            
-            local oldRequire
-            oldRequire = hookfunction(require, function(module)
-                local result = oldRequire(module)
-                
-                if targetModules[module] and type(result) == "table" then
-                    result["EquipAnim"] = function(_, _, p4)
-                        local ts = TweenService
-                        
-                        ts:Create(p4[2], TweenInfo.new(0), {
-                            ["C1"] = CFrame.new(-0.875, -0.2, -1.25) * CFrame.Angles(-1.0471975511965976, 0, 0)
-                        }):Play()
-                        ts:Create(p4[3], TweenInfo.new(0), {
-                            ["C1"] = CFrame.new(1.2, -0.05, -1.65) * CFrame.Angles(-1.5707963267948966, 0.6108652381980153, -0.4363323129985824)
-                        }):Play()
-                        
-                        task.wait(0.1 * animSpeed)
-                        
-                        local settings = require(module.Parent.Settings)
-                        ts:Create(p4[2], TweenInfo.new(0.4 * animSpeed), { ["C1"] = settings.RightPos }):Play()
-                        ts:Create(p4[3], TweenInfo.new(0.4 * animSpeed), { ["C1"] = settings.LeftPos }):Play()
-                        
-                        task.wait(0.4 * animSpeed)
-                    end
-                end
-                
-                return result
-            end)
-            
-            State.acsAnimPatchApplied = true
-        end)
-        
-        if success then
-            WindUI:Notify({
-                Title = "Патч применен",
-                Content = "Скорость анимаций: 0.5",
-                Icon = "lucide:check",
-            })
-        else
-            WindUI:Notify({
-                Title = "Ошибка",
-                Content = tostring(err),
-                Icon = "lucide:alert-triangle",
-            })
-        end
-    end
-})
-
-AnimButtonsGroup:Space()
-
-AnimButtonsGroup:Button({
-    Title = "Скорость 0.1",
-    Icon = "lucide:zap",
-    Justify = "Center",
-    Color = Color3.fromHex("#10C550"),
-    Callback = function()
-        if not ExecutorCapabilities.hookfunction then
-            WindUI:Notify({
-                Title = "Возможно не поддерживается твоим инжектором",
-                Content = "Попытка активировать...",
-                Icon = "lucide:alert-triangle",
-            })
-            return
-        end
-        
-        local success, err = pcall(function()
-            local animSpeed = 0.1
-            local gunsList = {
-                "AWP", "Barrett M82", "Kar98K", "Remington MSR",
-                "M200 Intervention", "M1903 Springfield", "M40 Sniper"
-            }
-            
-            for _, gunName in pairs(gunsList) do
-                if player.Backpack:FindFirstChild(gunName) or 
-                   (player.Character and player.Character:FindFirstChild(gunName)) then
-                    error("Сначала убери " .. gunName .. " из инвентаря!")
-                end
-            end
-            
-            local targetModules = {}
-            for _, gunName in pairs(gunsList) do
-                local path = ReplicatedStorage.Configurations.ACS_Guns:FindFirstChild(gunName)
-                if path and path:FindFirstChild("Animations") then
-                    targetModules[path.Animations] = true
-                end
-            end
-            
-            local oldRequire
-            oldRequire = hookfunction(require, function(module)
-                local result = oldRequire(module)
-                
-                if targetModules[module] and type(result) == "table" then
-                    result["EquipAnim"] = function(_, _, p4)
-                        local ts = TweenService
-                        
-                        ts:Create(p4[2], TweenInfo.new(0), {
-                            ["C1"] = CFrame.new(-0.875, -0.2, -1.25) * CFrame.Angles(-1.0471975511965976, 0, 0)
-                        }):Play()
-                        ts:Create(p4[3], TweenInfo.new(0), {
-                            ["C1"] = CFrame.new(1.2, -0.05, -1.65) * CFrame.Angles(-1.5707963267948966, 0.6108652381980153, -0.4363323129985824)
-                        }):Play()
-                        
-                        task.wait(0.1 * animSpeed)
-                        
-                        local settings = require(module.Parent.Settings)
-                        ts:Create(p4[2], TweenInfo.new(0.4 * animSpeed), { ["C1"] = settings.RightPos }):Play()
-                        ts:Create(p4[3], TweenInfo.new(0.4 * animSpeed), { ["C1"] = settings.LeftPos }):Play()
-                        
-                        task.wait(0.4 * animSpeed)
-                    end
-                end
-                
-                return result
-            end)
-            
-            State.acsAnimPatchApplied = true
-        end)
-        
-        if success then
-            WindUI:Notify({
-                Title = "Патч применен",
-                Content = "Скорость анимаций: 0.1 (максимум быстро)",
-                Icon = "lucide:check",
-            })
-        else
-            WindUI:Notify({
-                Title = "Ошибка",
-                Content = tostring(err),
-                Icon = "lucide:alert-triangle",
-            })
-        end
-    end
-})
-
-ACSTab:Space()
-
--- ════════════════════════════════════════════════════════════════
--- РАЗДЕЛ: СУПЕР ДРОБОВИК
--- ════════════════════════════════════════════════════════════════
-ACSTab:Section({
-    Title = "Супер Дробовик",
-    TextSize = 16,
-})
-
-ACSTab:Button({
-    Flag = "ACSshotgun",
-    Title = State.acsShotgunApplied and "✓ Супер Дробовик активен" or "Супер Дробовичек",
-    Desc = "Полностью модифицирует Remington 870",
-    Icon = "lucide:zap",
-    Justify = "Center",
-    Color = State.acsShotgunApplied and Color3.fromHex("#10C550") or Color3.fromHex("#FF5050"),
-    Callback = function()
-        if State.acsShotgunApplied then return end
-        
-        if not (ExecutorCapabilities.hookfunction and ExecutorCapabilities.hookmetamethod and ExecutorCapabilities.newcclosure) then
-            WindUI:Notify({
-                Title = "Возможно не поддерживается твоим инжектором",
-                Content = "Попытка активировать...",
-                Icon = "lucide:alert-triangle",
-            })
-        end
-        
-        local success, err = pcall(function()
-            local gunName = "Remington 870"
-            local targetGuns = { [gunName] = true }
-
-            -- 1. БЕСКОНЕЧНЫЕ ПАТРОНЫ (Hooking)
-            local oldIndex
-            oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, index)
-                if not checkcaller() then
-                    if index == "Value" and self.Name == "Ammo" then
-                        local p = self.Parent
-                        if p and targetGuns[p.Name] then return math.huge end
-                    end
-                    
-                    if index == "Ammo" and self.Name == "Settings" then
-                        local p = self.Parent
-                        if p and targetGuns[p.Name] then return math.huge end
-                    end
-                end
-                return oldIndex(self, index)
-            end))
-
-            -- 2. ГЛОБАЛЬНАЯ МОДИФИКАЦИЯ КОНФИГОВ (Скорострельность и Скорость зарядки)
-            task.spawn(function()
-                while task.wait(3) do
-                    pcall(function()
-                        local repo = game:GetService("ReplicatedStorage")
-                        local acsGuns = repo:FindFirstChild("Configurations") and repo.Configurations:FindFirstChild("ACS_Guns")
-                        
-                        if acsGuns and acsGuns:FindFirstChild(gunName) then
-                            local config = acsGuns[gunName]:FindFirstChild("Settings")
-                            if config then
-                                local s = require(config)
-                                s.ShootRate = 0.01
-                                s.ChamberDelay = 0
-                                s.ShootType = 1
-                                s.ReloadTime = 0.01
-                                s.ShellInsertTime = 0.01 
-                                s.ChamberTime = 0.01
-                            end
-                            
-                            local anims = acsGuns[gunName]:FindFirstChild("Animations")
-                            if anims then
-                                local a = require(anims)
-                                local fastFunc = function(...) return end 
-                                
-                                a.ShellInsertAnim = fastFunc
-                                a.ChamberAnim = fastFunc
-                                a.ChamberBKAnim = fastFunc
-                            end
-                        end
-                    end)
-                end
-            end)
-
-            -- 3. ПРИНУДИТЕЛЬНЫЙ ФИКС ОРУЖИЯ В РУКАХ
-            task.spawn(function()
-                game:GetService("RunService").Heartbeat:Connect(function()
-                    pcall(function()
-                        local char = game.Players.LocalPlayer.Character
-                        local tool = char and char:FindFirstChild(gunName)
-                        if tool then
-                            local s = tool:FindFirstChild("Settings") or tool:FindFirstChild("Config")
-                            if s and s:IsA("ModuleScript") then
-                                local st = require(s)
-                                st.ShootRate = 0.01
-                                st.ShellInsertTime = 0.01
-                                st.ReloadTime = 0.01
-                            end
-                        end
-                    end)
-                end)
-            end)
-            
-            State.acsShotgunApplied = true
-        end)
-        
-        if success then
-            WindUI:Notify({
-                Title = "Супер Дробовик активирован!",
-                Content = "Remington 870 полностью модифицирован",
-                Icon = "lucide:check",
-            })
-        else
-            WindUI:Notify({
-                Title = "Ошибка",
-                Content = tostring(err),
-                Icon = "lucide:alert-triangle",
-            })
-        end
-    end
-})
-
-ACSTab:Space()
-
--- ════════════════════════════════════════════════════════════════
--- РАЗДЕЛ: ПЕРСОНАЖ
+-- ГРУППА: ПЕРСОНАЖ
 -- ════════════════════════════════════════════════════════════════
 ACSTab:Section({
     Title = "Персонаж",
     TextSize = 16,
 })
 
-ACSTab:Button({
+local CharacterGroup = ACSTab:Group()
+
+CharacterGroup:Button({
     Flag = "ACSMedPatch",
     Title = State.acsMedPatchApplied and "✓ Медицина на ходу" or "Медицина на ходу",
     Desc = "Позволяет хилиться без остановки",
     Icon = "lucide:heart-pulse",
-    Justify = "Center",
+    Justify = "Left",
     Color = State.acsMedPatchApplied and Color3.fromHex("#10C550") or Color3.fromHex("#FF5050"),
     Callback = function()
         if State.acsMedPatchApplied then
@@ -1365,10 +1156,11 @@ ACSTab:Button({
         
         if not (ExecutorCapabilities.getrawmetatable and ExecutorCapabilities.setreadonly) then
             WindUI:Notify({
-                Title = "Возможно не поддерживается твоим инжектором",
-                Content = "Попытка активировать...",
-                Icon = "lucide:alert-triangle",
+                Title = "Не поддерживается",
+                Content = "Твой экзекутор не поддерживает getrawmetatable",
+                Icon = "lucide:x",
             })
+            return
         end
         
         local success, err = pcall(function()
@@ -1422,19 +1214,21 @@ ACSTab:Button({
 ACSTab:Space()
 
 -- ════════════════════════════════════════════════════════════════
--- РАЗДЕЛ: ЗВУКИ
+-- ГРУППА: АУДИО
 -- ════════════════════════════════════════════════════════════════
 ACSTab:Section({
-    Title = "Звуки",
+    Title = "Аудио",
     TextSize = 16,
 })
 
-ACSTab:Button({
+local AudioGroup = ACSTab:Group()
+
+AudioGroup:Button({
     Flag = "ACSHitSound",
-    Title = State.acsHitSoundEnabled and "✓ HitSound активен" or "Включить HitSound",
-    Desc = "Замена звука попадания (/sound/hit.mp3)",
+    Title = State.acsHitSoundEnabled and "✓ HitSound активен" or "Включить кастомный HitSound",
+    Desc = "Замена звука попадания (требуется workspace/hit_sound/head.mp3)",
     Icon = "lucide:volume-2",
-    Justify = "Center",
+    Justify = "Left",
     Color = State.acsHitSoundEnabled and Color3.fromHex("#10C550") or Color3.fromHex("#FF5050"),
     Callback = function()
         if State.acsHitSoundEnabled then
@@ -1448,15 +1242,16 @@ ACSTab:Button({
         
         if not ExecutorCapabilities.getcustomasset then
             WindUI:Notify({
-                Title = "Возможно не поддерживается твоим инжектором",
-                Content = "Попытка активировать...",
-                Icon = "lucide:alert-triangle",
+                Title = "Не поддерживается",
+                Content = "Твой экзекутор не поддерживает getcustomasset",
+                Icon = "lucide:x",
             })
+            return
         end
         
         local success, err = pcall(function()
-            local CUSTOM_SOUND_FILE = "hit.mp3"
-            local SOUNDS_FOLDER = "sound"
+            local CUSTOM_SOUND_FILE = "head.mp3"
+            local SOUNDS_FOLDER = "hit_sound"
             _G.HitmarkerVolume = _G.HitmarkerVolume or 1.5
             
             local MIN_DIST = 50
@@ -1527,73 +1322,9 @@ ACSTab:Button({
     end
 })
 
-ACSTab:Space()
-
-ACSTab:Button({
-    Flag = "ACSKillSound",
-    Title = State.acsKillSoundEnabled and "✓ Kill Sound активен" or "Включить Kill Sound",
-    Desc = "Замена звука при убийстве (/sound/kill.mp3)",
-    Icon = "lucide:volume-2",
-    Justify = "Center",
-    Color = State.acsKillSoundEnabled and Color3.fromHex("#10C550") or Color3.fromHex("#FF5050"),
-    Callback = function()
-        if State.acsKillSoundEnabled then
-            WindUI:Notify({
-                Title = "Уже активен",
-                Content = "Kill Sound уже включен!",
-                Icon = "lucide:info",
-            })
-            return
-        end
-        
-        if not ExecutorCapabilities.getcustomasset then
-            WindUI:Notify({
-                Title = "Возможно не поддерживается твоим инжектором",
-                Content = "Попытка активировать...",
-                Icon = "lucide:alert-triangle",
-            })
-        end
-        
-        local success, err = pcall(function()
-            local filePath = "sound/kill.mp3"
-            local targetPath = player:WaitForChild("PlayerGui"):WaitForChild("UI").Container.Overlay.KillMoney.Sound
-
-            local originalSoundId = targetPath.SoundId
-            local customSoundId = getcustomasset(filePath)
-            local useCustom = true
-
-            local function updateSound()
-                local desiredId = useCustom and customSoundId or originalSoundId
-                if targetPath.SoundId ~= desiredId then
-                    targetPath.SoundId = desiredId
-                end
-            end
-
-            targetPath:GetPropertyChangedSignal("SoundId"):Connect(updateSound)
-            updateSound()
-            
-            State.acsKillSoundEnabled = true
-        end)
-        
-        if success then
-            WindUI:Notify({
-                Title = "Kill Sound активирован",
-                Content = "Кастомный звук убийства включен!",
-                Icon = "lucide:volume-2",
-            })
-        else
-            WindUI:Notify({
-                Title = "Ошибка",
-                Content = tostring(err),
-                Icon = "lucide:alert-triangle",
-            })
-        end
-    end
-})
-
 
 -- ════════════════════════════════════════════════════════════════
--- ИСПРАВЛЕННАЯ СИСТЕМА КОНФИГОВ (FIXED)
+-- ВКЛАДКА: CONFIG
 -- ════════════════════════════════════════════════════════════════
 local ConfigTab = Window:Tab({
     Title = "Config",
@@ -1602,40 +1333,33 @@ local ConfigTab = Window:Tab({
     Border = true,
 })
 
+local ConfigManager = Window.ConfigManager
 local ConfigName = "default"
-local FolderName = "velohub_configs"
 
--- Создаем папку, если её нет
-if isfolder and not isfolder(FolderName) then
-    makefolder(FolderName)
-end
-
--- Функция для получения списка всех конфигов
-local function getConfigs()
-    local configs = {}
-    if listfiles then
-        local files = listfiles(FolderName)
-        for _, file in ipairs(files) do
-            -- Убираем путь и расширение для красоты в списке
-            local name = file:gsub(FolderName .. "\\", ""):gsub(".json", "")
-            table.insert(configs, name)
-        end
-    end
-    return #configs > 0 and configs or {"Нет конфигов"}
-end
-
-ConfigTab:Section({ Title = "Система файлов", TextSize = 18 })
+ConfigTab:Section({
+    Title = "Система конфигов",
+    TextSize = 18,
+})
 
 local ConfigNameInput = ConfigTab:Input({
     Title = "Название конфига",
     Icon = "lucide:file-cog",
     Value = ConfigName,
-    Callback = function(value) ConfigName = value end
+    Callback = function(value)
+        ConfigName = value
+    end
 })
 
+ConfigTab:Space()
+
+local AllConfigs = ConfigManager:AllConfigs()
+local DefaultValue = table.find(AllConfigs, ConfigName) and ConfigName or nil
+
 local AllConfigsDropdown = ConfigTab:Dropdown({
-    Title = "Список файлов",
-    Values = getConfigs(),
+    Title = "Выбрать конфиг",
+    Desc = "Выбери существующий конфиг",
+    Values = AllConfigs,
+    Value = DefaultValue,
     Callback = function(value)
         ConfigName = value
         ConfigNameInput:Set(value)
@@ -1646,59 +1370,77 @@ ConfigTab:Space()
 
 local ConfigButtonsGroup = ConfigTab:Group()
 
--- КНОПКА СОХРАНЕНИЯ
-ConfigButtonsGroup:Button({
-    Title = "Сохранить",
-    Icon = "lucide:save",
-    Color = Color3.fromHex("#257AF7"),
-    Callback = function()
-        local path = FolderName .. "/" .. ConfigName .. ".json"
-        local data = HttpService:JSONEncode(State) -- Кодируем таблицу State в текст
-        
-        local success, err = pcall(function()
-            writefile(path, data)
-        end)
-
-        if success then
-            WindUI:Notify({Title = "Успех", Content = "Конфиг сохранен: " .. ConfigName, Icon = "lucide:check"})
-            AllConfigsDropdown:Refresh(getConfigs())
-        else
-            WindUI:Notify({Title = "Ошибка ФС", Content = "Инжектор не дал записать файл", Icon = "lucide:x"})
-        end
-    end
-})
-
--- КНОПКА ЗАГРУЗКИ
 ConfigButtonsGroup:Button({
     Title = "Загрузить",
     Icon = "lucide:download",
+    Justify = "Center",
     Color = Color3.fromHex("#10C550"),
     Callback = function()
-        local path = FolderName .. "/" .. ConfigName .. ".json"
-        
-        if isfile and isfile(path) then
-            local success, err = pcall(function()
-                local data = readfile(path)
-                local decoded = HttpService:JSONDecode(data)
-                -- Обновляем State значениями из файла
-                for k, v in pairs(decoded) do
-                    State[k] = v
-                end
-            end)
-            
-            if success then
-                WindUI:Notify({Title = "Готово", Content = "Настройки применены! (Может потребоваться перезапуск функций)", Icon = "lucide:check"})
-            else
-                WindUI:Notify({Title = "Ошибка", Content = "Файл поврежден", Icon = "lucide:x"})
-            end
-        else
-            WindUI:Notify({Title = "Ошибка", Content = "Файл не найден", Icon = "lucide:x"})
+        Window.CurrentConfig = ConfigManager:CreateConfig(ConfigName)
+        if Window.CurrentConfig:Load() then
+            WindUI:Notify({
+                Title = "Конфиг загружен",
+                Content = "Конфиг '" .. ConfigName .. "' успешно загружен",
+                Icon = "lucide:check",
+            })
         end
+        
+        AllConfigsDropdown:Refresh(ConfigManager:AllConfigs())
+    end
+})
+
+ConfigButtonsGroup:Space()
+
+ConfigButtonsGroup:Button({
+    Title = "Сохранить",
+    Icon = "lucide:save",
+    Justify = "Center",
+    Color = Color3.fromHex("#257AF7"),
+    Callback = function()
+        Window.CurrentConfig = ConfigManager:Config(ConfigName)
+        if Window.CurrentConfig:Save() then
+            WindUI:Notify({
+                Title = "Конфиг сохранён",
+                Content = "Конфиг '" .. ConfigName .. "' успешно сохранён",
+                Icon = "lucide:check",
+            })
+        end
+        
+        AllConfigsDropdown:Refresh(ConfigManager:AllConfigs())
+    end
+})
+
+ConfigTab:Space()
+
+ConfigTab:Button({
+    Title = "Создать новый конфиг",
+    Icon = "lucide:file-plus",
+    Justify = "Center",
+    Callback = function()
+        if ConfigName == "" then
+            WindUI:Notify({
+                Title = "Ошибка",
+                Content = "Введи название конфига!",
+                Icon = "lucide:x",
+            })
+            return
+        end
+        
+        Window.CurrentConfig = ConfigManager:Config(ConfigName)
+        Window.CurrentConfig:Save()
+        
+        WindUI:Notify({
+            Title = "Конфиг создан",
+            Content = "Конфиг '" .. ConfigName .. "' создан!",
+            Icon = "lucide:check",
+        })
+        
+        AllConfigsDropdown:Refresh(ConfigManager:AllConfigs())
     end
 })
 
 -- ════════════════════════════════════════════════════════════════
--- ОПТИМИЗИРОВ��ННЫЕ СИСТЕМНЫЕ ЦИКЛЫ
+-- ОПТИМИЗИРОВАННЫЕ СИСТЕМНЫЕ ЦИКЛЫ
 -- ════════════════════════════════════════════════════════════════
 
 -- Управление временем
@@ -1731,37 +1473,6 @@ addConnection("RainbowLoop", RunService.RenderStepped:Connect(function()
             usernameLabel.TextColor3 = Color3.fromHSV(hue / 360, 1, 1)
         elseif State.rainbowUseCustomColor then
             usernameLabel.TextColor3 = State.rainbowCustomColor
-        end
-    end)
-end))
-
--- Система скрытия парашюта
-addConnection("ParachuteHide", RunService.Heartbeat:Connect(function()
-    if not State._running or not State.hideParachuteEnabled then return end
-    
-    pcall(function()
-        local targets = {
-            ["Backpack"] = true,
-            ["Mesh"] = true,
-            ["RightLeg"] = true,
-            ["LeftLeg"] = true
-        }
-        
-        local function hide(obj)
-            if targets[obj.Name] and obj:IsA("BasePart") then
-                obj.Transparency = 1
-                obj.LocalTransparencyModifier = 1
-                obj:GetPropertyChangedSignal("LocalTransparencyModifier"):Connect(function()
-                    obj.LocalTransparencyModifier = 1
-                end)
-            end
-        end
-        
-        local char = player.Character
-        if char then
-            for _, desc in ipairs(char:GetDescendants()) do
-                hide(desc)
-            end
         end
     end)
 end))
@@ -1907,7 +1618,7 @@ task.spawn(function()
     end)
     
     if success and gameKillfeed then
-        addConnection("Killfeed Watch", gameKillfeed.ChildAdded:Connect(function(child)
+        addConnection("KillfeedWatch", gameKillfeed.ChildAdded:Connect(function(child)
             if not State._running then return end
             
             pcall(function()
@@ -1924,7 +1635,7 @@ end)
 
 -- ════════════════════════════════════════════════════════════════
 -- АВТОМАТИЧЕСКОЕ ПРИМЕНЕНИЕ ПРИ РЕСПАВНЕ
--- ═════════════════════════════════════���══════════════════════════
+-- ════════════════════════════════════════════════════════════════
 addConnection("CharacterAdded", player.CharacterAdded:Connect(function(char)
     pcall(function()
         char:WaitForChild("HumanoidRootPart", 10)
@@ -1958,14 +1669,14 @@ end)
 -- ЗАВЕРШЕНИЕ ЗАГРУЗКИ
 -- ════════════════════════════════════════════════════════════════
 WindUI:Notify({
-    Title = "VeloHub 2.0 загружен!",
+    Title = "DCPHub загружен!",
     Content = "Скрипт успешно инициализирован. Нажми " .. State.menuKeybind .. " чтобы открыть меню",
     Icon = "lucide:check-circle",
     Duration = 5,
 })
 
 print("═══════════════════════════════════════════════")
-print("VeloHub 2.0 - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ")
+print("ДЦП ХАБ v1.1 - ОПТИМИЗИРОВАННАЯ ВЕРСИЯ")
 print("Все системы защиты активны")
 print("Наслаждайся!")
 print("═══════════════════════════════════════════════")
